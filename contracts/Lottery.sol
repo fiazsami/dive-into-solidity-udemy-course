@@ -63,8 +63,8 @@ contract Lottery {
         uint256 r = random();
         uint256 selected = r  % players.length;
         address winner = players[selected];
-
         gameWinners.push(winner);
+        
         uint balance = address(this).balance;    
         (bool success, ) = winner.call{value: balance}("");
 
@@ -73,8 +73,7 @@ contract Lottery {
         return success;
     }
 
-
-    function resetGame() private {
+    function resetGame() public  onlyOwner {
         for (uint i ; i < players.length ; i++) {
             delete currentPlayers[players[i]];   
         }

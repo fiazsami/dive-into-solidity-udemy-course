@@ -124,5 +124,18 @@ describe("Lottery Contract", function () {
                 }),
             ).to.be.revertedWith("CANNOT_ENTER_2x");
         });
+
+        it("Resets game", async () => {
+            for (let i = 0; i < 4; i++) {
+                await addrs[i].sendTransaction({
+                    to: lottery.address,
+                    value: parseEther("0.1"),
+                });
+            }
+
+            expect(await lottery.getPlayerCount()).to.be.equal(4);
+            await lottery.resetGame();
+            expect(await lottery.getPlayerCount()).to.be.equal(0);
+        });
     });
 });
