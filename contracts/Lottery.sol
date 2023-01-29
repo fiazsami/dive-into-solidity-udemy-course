@@ -1,47 +1,109 @@
 //SPDX-License-Identifier: GPL-3.0
 
 pragma solidity ^0.8.13;
-import "hardhat/console.sol";
 
 contract Lottery {
+    uint MIN_ENTRY_PRICE = 100000000000000000;
+
     // declaring the state variables
-    address[] public players; //dynamic array of type address payable
-    address[] public gameWinners;
-    address public owner;
+    address[] private players; //dynamic array of type address payable
+    address[] private gameWinners;
+    address private owner;
+
+    // used to ensure only one address is entered
+    mapping(address => bool) private currentPlayers;
+    
+    // mutex variable
+    bool private isPicking;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "ONLY_OWNER");
+        _;
+    }
+
+
+    modifier canPlay() {
+        bool notEnoughPlayers = players.length < 3;
+        require(!notEnoughPlayers, "NOT_ENOUGH_PLAYERS");
+        require(!isPicking);
+        _;
+    }
+
+
+    modifier singleEntry() {
+        require(!currentPlayers[msg.sender], "CANNOT_ENTER_2x");
+        currentPlayers[msg.sender] = true;
+        _;
+    }
+
+
+    modifier minEntryPrice() {
+        require(msg.value == MIN_ENTRY_PRICE);       
+        _;
+    }
+
+
 
     // declaring the constructor
     constructor() {
-        // TODO: initialize the owner to the address that deploys the contract
+        owner = msg.sender;
     }
+
 
     // declaring the receive() function that is necessary to receive ETH
-    receive() external payable {
-        // TODO: require each player to send exactly 0.1 ETH
-        // TODO: append the new player to the players array
+    receive() external payable minEntryPrice singleEntry {
+        players.push(msg.sender);
     }
+
 
     // returning the contract's balance in wei
-    function getBalance() public view returns (uint256) {
-        // TODO: restrict this function so only the owner is allowed to call it
-        // TODO: return the balance of this address
+    function getBalance() external view onlyOwner returns (uint256) {
+        return address(this).balance;
     }
+
 
     // selecting the winner
-    function pickWinner() public {
-        // TODO: only the owner can pick a winner 
-        // TODO: owner can only pick a winner if there are at least 3 players in the lottery
+    function pickWinner() public onlyOwner canPlay returns (bool) {
+        isPicking = true;
 
         uint256 r = random();
-        address winner;
+        uint256 selected = r  % players.length;
+        address winner = players[selected];
 
-        // TODO: compute an unsafe random index of the array and assign it to the winner variable 
+        gameWinners.push(winner);
+        uint balance = address(this).balance;    
+        (bool success, ) = winner.call{value: balance}("");
 
-        // TODO: append the winner to the gameWinners array
+        resetGame();
 
-        // TODO: reset the lottery for the next round
-
-        // TODO: transfer the entire contract's balance to the winner
+        return success;
     }
+
+
+    function resetGame() private {
+        for (uint i ; i < players.length ; i++) {
+            delete currentPlayers[players[i]];   
+        }
+        delete players;
+
+        isPicking = false;
+    }
+
+
+    function getPlayer(uint index) external view returns (address) {
+        return players[index];
+    }
+
+
+    function getWinner(uint index) external view returns (address) {
+        return gameWinners[index];
+    }
+
+
+    function getPlayerCount() external view returns(uint count) {
+        return players.length;
+    }
+
 
     // helper function that returns a big random integer
     // UNSAFE! Don't trust random numbers generated on-chain, they can be exploited! This method is used here for simplicity
