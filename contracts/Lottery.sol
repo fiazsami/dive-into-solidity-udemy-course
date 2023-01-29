@@ -12,9 +12,6 @@ contract Lottery {
 
     // used to ensure only one address is entered
     mapping(address => bool) private currentPlayers;
-    
-    // mutex variable
-    bool private isPicking;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "ONLY_OWNER");
@@ -25,7 +22,6 @@ contract Lottery {
     modifier canPlay() {
         bool notEnoughPlayers = players.length < 3;
         require(!notEnoughPlayers, "NOT_ENOUGH_PLAYERS");
-        require(!isPicking);
         _;
     }
 
@@ -64,8 +60,6 @@ contract Lottery {
 
     // selecting the winner
     function pickWinner() public onlyOwner canPlay returns (bool) {
-        isPicking = true;
-
         uint256 r = random();
         uint256 selected = r  % players.length;
         address winner = players[selected];
@@ -85,8 +79,6 @@ contract Lottery {
             delete currentPlayers[players[i]];   
         }
         delete players;
-
-        isPicking = false;
     }
 
 
